@@ -6,39 +6,61 @@ export default function Configuracoes() {
   const updateSettings = useStore((s) => s.updateSettings)
 
   return (
-    <div className="p-6 space-y-5 max-w-xl mx-auto">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-100">Configurações</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Preferências de exibição.</p>
+    <div style={{ maxWidth: '40rem', margin: '0 auto', padding: '2rem 1.5rem 3rem' }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.75rem', fontWeight: 400, color: 'var(--txt-1)', letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: '0.375rem' }}>
+          Configurações
+        </h1>
+        <p style={{ color: 'var(--txt-3)', fontSize: '0.875rem' }}>Preferências de exibição.</p>
       </div>
 
-      <div className="card space-y-5">
-        <h3 className="text-sm font-medium text-slate-200">Exibição</h3>
-        <div className="flex items-center justify-between">
+      <div className="card" style={{ marginBottom: '1.25rem' }}>
+        <h3 style={{ fontSize: '0.9375rem', fontWeight: 500, color: 'var(--txt-1)', marginBottom: '1.25rem' }}>Exibição</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
           <div>
-            <p className="text-sm text-slate-300">Mostrar centavos</p>
-            <p className="text-xs text-slate-500 mt-0.5">Exibir casas decimais nos valores</p>
+            <p style={{ fontSize: '0.9375rem', color: 'var(--txt-1)', marginBottom: '0.25rem' }}>Mostrar centavos</p>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--txt-3)' }}>Exibir casas decimais nos valores</p>
           </div>
           <button
             onClick={() => updateSettings({ showDecimals: !settings.showDecimals })}
-            className={`relative w-10 h-5 rounded-full transition-colors ${settings.showDecimals ? 'bg-teal-500' : 'bg-[#152a52]'}`}
+            style={{
+              position: 'relative', width: 44, height: 24, borderRadius: 9999, border: 'none',
+              background: settings.showDecimals ? 'var(--accent)' : 'var(--border-2)',
+              cursor: 'pointer', transition: 'background 200ms ease', flexShrink: 0,
+            }}
           >
-            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${settings.showDecimals ? 'translate-x-5' : 'translate-x-0.5'}`} />
+            <span style={{
+              position: 'absolute', top: 2, left: settings.showDecimals ? 22 : 2,
+              width: 20, height: 20, borderRadius: '50%', background: '#fff',
+              transition: 'left 200ms ease',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            }} />
           </button>
         </div>
-        <div className="bg-[#0f2040] rounded-xl p-3">
-          <p className="text-xs text-slate-500 mb-1">Prévia</p>
-          <p className="font-mono text-teal-400">{formatCurrency(12345.67, settings.showDecimals)}</p>
+        <div style={{
+          marginTop: '1.25rem', padding: '0.875rem 1rem', borderRadius: '0.75rem', background: 'var(--surface-2)',
+        }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--txt-3)', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 500 }}>Prévia</p>
+          <p style={{ fontFamily: "'DM Mono', monospace", fontSize: '1.125rem', color: 'var(--accent)', fontWeight: 300 }}>
+            {formatCurrency(12345.67, settings.showDecimals)}
+          </p>
         </div>
       </div>
 
-      <div className="card space-y-2">
-        <h3 className="text-sm font-medium text-slate-200 mb-3">Privacidade</h3>
-        <ul className="space-y-1.5 text-xs text-slate-500 leading-relaxed">
-          <li>· Dados salvos exclusivamente neste navegador (localStorage)</li>
-          <li>· Nenhuma informação é enviada a servidores</li>
-          <li>· Limpar os dados do navegador pode apagar sua alocação</li>
-          <li>· Use Backup para exportar seus dados regularmente</li>
+      <div className="card">
+        <h3 style={{ fontSize: '0.9375rem', fontWeight: 500, color: 'var(--txt-1)', marginBottom: '1rem' }}>Privacidade</h3>
+        <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {[
+            'Dados salvos exclusivamente neste navegador (localStorage)',
+            'Nenhuma informação é enviada a servidores',
+            'Limpar os dados do navegador pode apagar sua alocação',
+            'Use Backup para exportar seus dados regularmente',
+          ].map((item) => (
+            <li key={item} style={{ display: 'flex', gap: '0.625rem', fontSize: '0.8125rem', color: 'var(--txt-2)', lineHeight: 1.5 }}>
+              <span style={{ color: 'var(--txt-3)', flexShrink: 0 }}>·</span>
+              {item}
+            </li>
+          ))}
         </ul>
       </div>
     </div>

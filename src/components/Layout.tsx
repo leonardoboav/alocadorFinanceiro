@@ -1,109 +1,214 @@
-import { Outlet, NavLink } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import { TrendingUp, PieChart, Zap, Download, Settings, LayoutDashboard, Menu, X } from 'lucide-react'
+import { Outlet, NavLink, Link } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { TrendingUp, Menu, X, Settings, Download, MoreHorizontal } from 'lucide-react'
 import { useStore } from '../store/store'
-import { getTotalValue } from '../utils/calculations'
+import { computePortfolioTotal } from '../utils/calculations'
 import { formatCurrency } from '../utils/format'
 
-const nav = [
-  { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/app/alocacao', label: 'Alocação', icon: PieChart },
-  { to: '/app/aportes', label: 'Aportes', icon: Zap },
+const mainNav = [
+  { to: '/app', label: 'Dashboard', end: true },
+  { to: '/app/carteira', label: 'Carteira' },
+  { to: '/app/alocacao', label: 'Alocação' },
+  { to: '/app/aportes', label: 'Aportes' },
+]
+
+const utilNav = [
   { to: '/app/backup', label: 'Backup', icon: Download },
   { to: '/app/configuracoes', label: 'Configurações', icon: Settings },
 ]
 
+const navLinkStyle = (isActive: boolean): React.CSSProperties => ({
+  padding: '0.375rem 0.75rem',
+  borderRadius: 8,
+  fontSize: '0.875rem',
+  fontWeight: isActive ? 500 : 400,
+  color: isActive ? 'var(--txt-1)' : 'var(--txt-2)',
+  background: isActive ? 'var(--surface)' : 'transparent',
+  textDecoration: 'none',
+  transition: 'all 120ms ease',
+  border: isActive ? '1px solid var(--border)' : '1px solid transparent',
+  whiteSpace: 'nowrap' as const,
+})
+
 export default function Layout() {
-  const [open, setOpen] = useState(false)
-  const classes = useStore((s) => s.assetClasses)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreRef = useRef<HTMLDivElement>(null)
+
+  const rawClasses = useStore((s) => s.assetClasses)
+  const assets = useStore((s) => s.assets)
   const settings = useStore((s) => s.settings)
   const loadRates = useStore((s) => s.loadRates)
-  const total = getTotalValue(classes)
+  const total = computePortfolioTotal(rawClasses, assets)
 
   useEffect(() => { loadRates() }, [loadRates])
 
-  const sidebar = (
-    <aside className="w-56 flex-shrink-0 flex flex-col bg-[#0a1628] border-r border-[#152a52] h-full">
-      <div className="px-5 py-4 border-b border-[#152a52] flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-teal-500/15 flex items-center justify-center">
-            <TrendingUp size={14} className="text-teal-400" />
-          </div>
-          <span className="font-semibold text-sm text-slate-100">Alocador</span>
-        </div>
-        <button onClick={() => setOpen(false)} className="lg:hidden text-slate-500 hover:text-slate-200">
-          <X size={16} />
-        </button>
-      </div>
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
-      <div className="px-5 py-3.5 border-b border-[#152a52]">
-        <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Patrimônio</p>
-        <p className="font-mono text-teal-400 font-semibold text-base">
-          {formatCurrency(total, settings.showDecimals)}
-        </p>
-      </div>
-
-      <nav className="flex-1 px-2.5 py-3 space-y-0.5">
-        {nav.map(({ to, label, icon: Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            onClick={() => setOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
-                isActive
-                  ? 'bg-teal-500/12 text-teal-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#0f2040]'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon size={15} className={isActive ? 'text-teal-400' : 'text-slate-500'} />
-                {label}
-              </>
-            )}
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className="px-5 py-3.5 border-t border-[#152a52]">
-        <p className="text-[10px] text-slate-600">Dados salvos localmente</p>
-      </div>
-    </aside>
-  )
+  useEffect(() => {
+    if (mobileOpen) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
+    return () => { document.body.style.overflow = '' }
+  }, [mobileOpen])
 
   return (
-    <div className="flex h-screen bg-[#050d1a] overflow-hidden">
-      {/* Mobile overlay */}
-      {open && (
-        <div className="fixed inset-0 bg-black/60 z-20 lg:hidden" onClick={() => setOpen(false)} />
-      )}
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* ── Top header ── */}
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 40,
+        background: 'rgba(13, 17, 23, 0.88)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid var(--border)',
+      }}>
+        <div style={{
+          maxWidth: '72rem', margin: '0 auto',
+          padding: '0 1.5rem', height: 52,
+          display: 'flex', alignItems: 'center', gap: '0.5rem',
+        }}>
+          {/* Logo */}
+          <Link to="/app" style={{
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            textDecoration: 'none', flexShrink: 0, marginRight: '1rem',
+          }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: 7,
+              background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <TrendingUp size={14} style={{ color: 'var(--accent)' }} />
+            </div>
+            <span style={{
+              fontWeight: 600, fontSize: '0.9375rem',
+              color: 'var(--txt-1)', letterSpacing: '-0.02em',
+            }}>FinAtivo</span>
+          </Link>
 
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex h-full">{sidebar}</div>
+          {/* Desktop nav links */}
+          <nav style={{ display: 'flex', alignItems: 'center', gap: '0.125rem', flex: 1 }}
+            className="hidden md:flex">
+            {mainNav.map(({ to, label, end }) => (
+              <NavLink key={to} to={to} end={end}
+                style={({ isActive }) => navLinkStyle(isActive)}>
+                {label}
+              </NavLink>
+            ))}
+          </nav>
 
-      {/* Mobile sidebar */}
-      {open && (
-        <div className="fixed inset-y-0 left-0 z-30 lg:hidden flex h-full">{sidebar}</div>
-      )}
+          {/* Desktop right side */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: 'auto' }}
+            className="hidden md:flex">
+            <div style={{ textAlign: 'right' }}>
+              <div style={{
+                fontSize: '0.625rem', color: 'var(--txt-3)',
+                textTransform: 'uppercase', letterSpacing: '0.07em', lineHeight: 1,
+              }}>Patrimônio</div>
+              <div style={{
+                fontFamily: "'DM Mono', monospace", fontWeight: 400,
+                fontSize: '0.9375rem', color: 'var(--accent)', lineHeight: 1.4,
+              }}>
+                {formatCurrency(total, settings.showDecimals)}
+              </div>
+            </div>
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile topbar */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3.5 border-b border-[#152a52]">
-          <button onClick={() => setOpen(true)} className="text-slate-400 hover:text-slate-200">
-            <Menu size={19} />
-          </button>
-          <div className="flex items-center gap-2">
-            <TrendingUp size={14} className="text-teal-400" />
-            <span className="font-semibold text-sm text-slate-100">Alocador</span>
+            {/* More dropdown */}
+            <div ref={moreRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setMoreOpen(!moreOpen)}
+                style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  background: moreOpen ? 'var(--surface)' : 'transparent',
+                  border: moreOpen ? '1px solid var(--border)' : '1px solid transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: 'var(--txt-2)',
+                  transition: 'all 120ms ease',
+                }}
+                title="Mais opções"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+
+              {moreOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: '0.375rem', minWidth: 168,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
+                  zIndex: 50,
+                }}>
+                  {utilNav.map(({ to, label, icon: Icon }) => (
+                    <NavLink key={to} to={to} onClick={() => setMoreOpen(false)}
+                      style={({ isActive }) => ({
+                        display: 'flex', alignItems: 'center', gap: '0.625rem',
+                        padding: '0.5rem 0.75rem', borderRadius: 8,
+                        fontSize: '0.875rem',
+                        color: isActive ? 'var(--accent)' : 'var(--txt-1)',
+                        background: isActive ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : 'transparent',
+                        textDecoration: 'none', transition: 'background 100ms ease',
+                      })}>
+                      <Icon size={14} style={{ color: 'var(--txt-3)' }} />
+                      {label}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </header>
-        <main className="flex-1 overflow-y-auto">
-          <Outlet />
-        </main>
-      </div>
+
+          {/* Mobile right */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: 'auto' }}
+            className="flex md:hidden">
+            <span style={{
+              fontFamily: "'DM Mono', monospace", fontSize: '0.875rem', color: 'var(--accent)',
+            }}>
+              {formatCurrency(total, false)}
+            </span>
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              style={{
+                width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--txt-1)',
+              }}
+            >
+              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile menu */}
+        {mobileOpen && (
+          <div style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)' }}
+            className="md:hidden">
+            <div style={{ padding: '0.5rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+              {[...mainNav, ...utilNav.map((n) => ({ ...n, end: undefined }))].map(({ to, label, end }) => (
+                <NavLink key={to} to={to} end={end}
+                  onClick={() => setMobileOpen(false)}
+                  style={({ isActive }) => ({
+                    display: 'flex', alignItems: 'center',
+                    padding: '0.75rem 0.875rem', borderRadius: 10,
+                    fontSize: '0.9375rem',
+                    fontWeight: isActive ? 500 : 400,
+                    color: isActive ? 'var(--accent)' : 'var(--txt-1)',
+                    background: isActive ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : 'transparent',
+                    textDecoration: 'none',
+                  })}>
+                  {label}
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        )}
+      </header>
+
+      <main>
+        <Outlet />
+      </main>
     </div>
   )
 }

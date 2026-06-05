@@ -10,6 +10,18 @@ export interface AssetClass {
   foreignValue?: number  // value in the original currency (only relevant when currency != BRL)
 }
 
+export interface Asset {
+  id: string
+  name: string
+  ticker?: string
+  quantity: number
+  avgPrice: number         // always BRL (converted at input time)
+  gainLossPct: number      // percentage, e.g. -15 means -15%
+  currency?: import('../utils/rates').Currency  // original input currency, defaults to BRL
+  foreignAvgPrice?: number // original price in the foreign currency
+  classId?: string         // optional link to an AssetClass
+}
+
 export interface Settings {
   showDecimals: boolean
 }

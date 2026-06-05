@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AssetClass, Settings } from '../types'
+import type { AssetClass, Asset, Settings } from '../types'
 import { generateId } from '../utils/format'
 import { CLASS_COLORS } from '../types'
 import { getRates, fetchDailyRates, loadCachedRates, convertToBRL } from '../utils/rates'
@@ -9,12 +9,18 @@ import type { Currency, RatesCache } from '../utils/rates'
 interface State {
   // Asset classes
   assetClasses: AssetClass[]
+  assets: Asset[]
   settings: Settings
 
   // Exchange rates
   ratesCache: RatesCache | null
   ratesFetching: boolean
   ratesError: string | null
+
+  // Individual asset actions
+  addAsset: (partial: Omit<Asset, 'id'>) => void
+  updateAsset: (id: string, updates: Partial<Omit<Asset, 'id'>>) => void
+  removeAsset: (id: string) => void
 
   // Asset class actions
   addAssetClass: (partial: Omit<AssetClass, 'id'>) => void
@@ -58,10 +64,20 @@ export const useStore = create<State>()(
   persist(
     (set, get) => ({
       assetClasses: defaultClasses,
+      assets: [],
       settings: { showDecimals: true },
       ratesCache: loadCachedRates(),
       ratesFetching: false,
       ratesError: null,
+
+      addAsset: (partial) =>
+        set((s) => ({ assets: [...s.assets, { ...partial, id: generateId() }] })),
+
+      updateAsset: (id, updates) =>
+        set((s) => ({ assets: s.assets.map((a) => a.id === id ? { ...a, ...updates } : a) })),
+
+      removeAsset: (id) =>
+        set((s) => ({ assets: s.assets.filter((a) => a.id !== id) })),
 
       addAssetClass: (partial) =>
         set((s) => ({ assetClasses: [...s.assetClasses, { ...partial, id: generateId() }] })),
@@ -71,10 +87,7 @@ export const useStore = create<State>()(
           const classes = s.assetClasses.map((c) => {
             if (c.id !== id) return c
             const merged = { ...c, ...updates }
-            // Recompute BRL value if foreign currency
-            if (merged.currency !== 'BRL' && merged.foreignValue != null) {
-              merged.currentValue = convertToBRL(merged.foreignValue, merged.currency as Currency, s.ratesCache?.rates ?? {})
-            }
+            merged.currentValue = computeBRL(merged, s.ratesCache)
             return merged
           })
           return { assetClasses: classes }
@@ -99,6 +112,7 @@ export const useStore = create<State>()(
       loadRates: async () => {
         const s = get()
         if (s.ratesFetching) return
+        if (s.ratesCache?.date === new Date().toISOString().slice(0, 10)) return
         set({ ratesFetching: true, ratesError: null })
         try {
           const cache = await getRates()
@@ -136,6 +150,7 @@ export const useStore = create<State>()(
       // Don't persist fetching/error state
       partialize: (s) => ({
         assetClasses: s.assetClasses,
+        assets: s.assets,
         settings: s.settings,
       }),
     }

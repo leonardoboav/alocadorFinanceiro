@@ -52,7 +52,9 @@ export function loadCachedRates(): RatesCache | null {
 function saveRates(cache: RatesCache): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cache))
-  } catch {}
+  } catch (e) {
+    console.warn('[alocador] Failed to persist rates cache:', e)
+  }
 }
 
 export async function fetchDailyRates(): Promise<RatesCache> {

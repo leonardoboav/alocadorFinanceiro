@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const t=require\\('./tsconfig.app.json'\\);console.log\\('   strict:',t.compilerOptions.strict,'noUnusedLocals:',t.compilerOptions.noUnusedLocals,'✓'\\)\")",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

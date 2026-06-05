@@ -1,4 +1,35 @@
-import type { AssetClass } from '../types'
+import type { AssetClass, Asset } from '../types'
+
+function assetCurrentBRL(a: Asset): number {
+  return a.quantity * a.avgPrice * (1 + a.gainLossPct / 100)
+}
+
+/** Overrides currentValue of each class with the BRL sum of linked assets.
+ *  Classes with no linked assets keep their manually set currentValue. */
+export function resolveClassValues(classes: AssetClass[], assets: Asset[]): AssetClass[] {
+  return classes.map((cls) => {
+    const linked = assets.filter((a) => a.classId === cls.id)
+    if (linked.length === 0) return cls
+    return { ...cls, currentValue: linked.reduce((s, a) => s + assetCurrentBRL(a), 0) }
+  })
+}
+
+/**
+ * Full portfolio total:
+ * - sum of ALL asset current values (linked or not)
+ * - plus manual currentValue of classes that have NO linked assets
+ *
+ * This ensures unlinked assets are never silently excluded from the total,
+ * while still counting bulk manual class entries (e.g. Renda Fixa set manually).
+ */
+export function computePortfolioTotal(classes: AssetClass[], assets: Asset[]): number {
+  const assetTotal = assets.reduce((s, a) => s + assetCurrentBRL(a), 0)
+  const linkedClassIds = new Set(assets.filter((a) => a.classId).map((a) => a.classId!))
+  const manualOnlyTotal = classes
+    .filter((c) => !linkedClassIds.has(c.id))
+    .reduce((s, c) => s + c.currentValue, 0)
+  return assetTotal + manualOnlyTotal
+}
 
 export function getTotalValue(classes: AssetClass[]): number {
   return classes.reduce((s, c) => s + c.currentValue, 0)

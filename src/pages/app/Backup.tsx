@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Download, Upload, Trash2, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Download, Upload, Trash2, CheckCircle } from 'lucide-react'
 import { useStore } from '../../store/store'
 import { exportToJSON, importFromJSON } from '../../utils/storage'
 import { getTotalValue } from '../../utils/calculations'
@@ -22,8 +22,7 @@ export default function Backup() {
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setError(null)
-    setSuccess(false)
+    setError(null); setSuccess(false)
     try {
       const data = await importFromJSON(file)
       setAssetClasses(data.assetClasses)
@@ -36,63 +35,92 @@ export default function Backup() {
     }
   }
 
+  const rowStyle = (label: string, value: string) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid var(--border)' }}
+      className="last:border-0">
+      <span style={{ fontSize: '0.875rem', color: 'var(--txt-2)' }}>{label}</span>
+      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.875rem', color: 'var(--txt-1)' }}>{value}</span>
+    </div>
+  )
+
   return (
-    <div className="p-6 space-y-5 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-100">Backup</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Seus dados ficam exclusivamente neste navegador.</p>
+    <div style={{ maxWidth: '40rem', margin: '0 auto', padding: '2rem 1.5rem 3rem' }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.75rem', fontWeight: 400, color: 'var(--txt-1)', letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: '0.375rem' }}>
+          Backup
+        </h1>
+        <p style={{ color: 'var(--txt-3)', fontSize: '0.875rem' }}>Seus dados ficam exclusivamente neste navegador.</p>
       </div>
 
-      <div className="card space-y-4">
-        <h3 className="text-sm font-medium text-slate-200">Exportar dados</h3>
-        <div className="bg-[#0f2040] rounded-xl p-4 text-sm space-y-2">
-          {[
-            ['Classes de ativos', `${classes.length}`],
-            ['Patrimônio total', formatCurrency(total, sd)],
-          ].map(([k, v]) => (
-            <div key={k} className="flex justify-between text-slate-400">
-              <span>{k}</span><span className="font-mono">{v}</span>
-            </div>
-          ))}
+      {/* Export */}
+      <div className="card" style={{ marginBottom: '1.25rem' }}>
+        <h3 style={{ fontSize: '0.9375rem', fontWeight: 500, color: 'var(--txt-1)', marginBottom: '1rem' }}>Exportar dados</h3>
+        <div style={{ background: 'var(--surface-2)', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1rem' }}>
+          {rowStyle('Classes de ativos', String(classes.length))}
+          {rowStyle('Patrimônio total', formatCurrency(total, sd))}
+          {rowStyle('Data', new Date().toLocaleDateString('pt-BR'))}
         </div>
-        <button onClick={() => exportToJSON({ assetClasses: classes, settings })} className="btn-primary">
-          <Download size={14} /> Exportar JSON
+        <button
+          onClick={() => exportToJSON({ assetClasses: classes, settings })}
+          className="btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Download size={14} /> Baixar arquivo JSON
         </button>
       </div>
 
-      <div className="card space-y-4">
-        <h3 className="text-sm font-medium text-slate-200">Importar backup</h3>
-        <p className="text-sm text-slate-400">Selecione um JSON exportado anteriormente. Os dados atuais serão substituídos.</p>
+      {/* Import */}
+      <div className="card" style={{ marginBottom: '1.25rem' }}>
+        <h3 style={{ fontSize: '0.9375rem', fontWeight: 500, color: 'var(--txt-1)', marginBottom: '0.5rem' }}>Importar dados</h3>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--txt-3)', marginBottom: '1rem', lineHeight: 1.6 }}>
+          Selecione um arquivo JSON previamente exportado pelo FinAtivo. Os dados atuais serão substituídos.
+        </p>
+
         {error && (
-          <div className="flex items-center gap-2 bg-red-950/30 border border-red-900/40 rounded-xl p-3 text-sm text-red-400">
-            <AlertTriangle size={14} />{error}
-          </div>
+          <div style={{
+            padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem',
+            background: 'color-mix(in srgb, var(--negative) 6%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--negative) 20%, transparent)',
+            fontSize: '0.8125rem', color: 'var(--negative)',
+          }}>{error}</div>
         )}
+
         {success && (
-          <div className="flex items-center gap-2 bg-emerald-950/30 border border-emerald-900/40 rounded-xl p-3 text-sm text-emerald-400">
-            <CheckCircle size={14} />Dados importados com sucesso!
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem',
+            background: 'color-mix(in srgb, var(--positive) 6%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--positive) 20%, transparent)',
+            fontSize: '0.8125rem', color: 'var(--positive)',
+          }}>
+            <CheckCircle size={14} /> Dados importados com sucesso!
           </div>
         )}
-        <input ref={fileRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+
+        <input type="file" ref={fileRef} accept=".json" onChange={handleImport} style={{ display: 'none' }} />
         <button onClick={() => fileRef.current?.click()} className="btn-secondary">
-          <Upload size={14} /> Selecionar arquivo JSON
+          <Upload size={14} /> Selecionar arquivo
         </button>
       </div>
 
-      <div className="card border-red-900/30 space-y-3">
-        <h3 className="text-sm font-medium text-red-400 flex items-center gap-2">
-          <Trash2 size={14} /> Limpar dados
-        </h3>
-        <p className="text-sm text-slate-400">Remove toda a alocação e volta ao estado inicial. Irreversível.</p>
+      {/* Reset */}
+      <div className="card">
+        <h3 style={{ fontSize: '0.9375rem', fontWeight: 500, color: 'var(--txt-1)', marginBottom: '0.5rem' }}>Redefinir dados</h3>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--txt-3)', marginBottom: '1rem', lineHeight: 1.6 }}>
+          Remove todos os valores registrados e retorna ao estado inicial. Esta ação não pode ser desfeita.
+        </p>
         {!confirmReset ? (
           <button onClick={() => setConfirmReset(true)} className="btn-danger">
-            <Trash2 size={13} /> Limpar dados
+            <Trash2 size={14} /> Redefinir carteira
           </button>
         ) : (
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm text-amber-400 flex items-center gap-1.5"><AlertTriangle size={13} />Tem certeza?</span>
-            <button onClick={() => { reset(); setConfirmReset(false) }} className="btn-danger">Confirmar</button>
-            <button onClick={() => setConfirmReset(false)} className="btn-ghost">Cancelar</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.875rem', color: 'var(--txt-1)', fontWeight: 500 }}>Tem certeza?</span>
+            <button onClick={() => { reset(); setConfirmReset(false) }} className="btn-danger">
+              <Trash2 size={14} /> Confirmar redefinição
+            </button>
+            <button onClick={() => setConfirmReset(false)} className="btn-ghost" style={{ color: 'var(--txt-2)' }}>
+              Cancelar
+            </button>
           </div>
         )}
       </div>

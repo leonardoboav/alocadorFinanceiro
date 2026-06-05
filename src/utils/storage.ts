@@ -12,7 +12,7 @@ export function exportToJSON(data: AppData): void {
   a.href = url
   a.download = `alocador_backup_${new Date().toISOString().slice(0, 10)}.json`
   a.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 100)
 }
 
 export function importFromJSON(file: File): Promise<AppData> {
