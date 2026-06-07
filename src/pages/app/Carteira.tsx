@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, Check, X, TrendingUp, TrendingDown } from 'lucide
 import { useStore } from '../../store/store'
 import { formatCurrency } from '../../utils/format'
 import { convertToBRL, formatForeign, CURRENCY_SYMBOLS } from '../../utils/rates'
+import { resolveClassValues, computePortfolioTotal } from '../../utils/calculations'
 import type { Currency, RatesCache } from '../../utils/rates'
 import type { Asset } from '../../types'
 
@@ -250,7 +251,7 @@ function AssetForm({ initial = emptyForm, onSave, onCancel, isEdit, ratesCache, 
 interface AssetRowProps {
   asset: Asset
   showDecimals: boolean
-  linkedClass?: { name: string; color: string }
+  linkedClass?: { name: string; color: string; dev?: number }
   onEdit: () => void
   onDelete: () => void
 }
@@ -260,6 +261,18 @@ function AssetRow({ asset, showDecimals, linkedClass, onEdit, onDelete }: AssetR
   const cur  = currentValue(asset)
   const pnl  = pnlBRL(asset)
   const isPos = asset.gainLossPct >= 0
+
+  const classDev = linkedClass?.dev
+  const classDevLabel = classDev !== undefined
+    ? Math.abs(classDev) <= 2 ? '✓'
+      : classDev > 0 ? `↓${classDev.toFixed(1)}pp`
+      : `↑${Math.abs(classDev).toFixed(1)}pp`
+    : null
+  const classDevColor = classDev !== undefined
+    ? Math.abs(classDev) <= 2 ? 'var(--positive)'
+      : classDev > 0 ? 'var(--warning)'
+      : 'var(--negative)'
+    : 'var(--txt-3)'
 
   const cellStyle: React.CSSProperties = {
     padding: '1rem 0.75rem',
@@ -282,9 +295,14 @@ function AssetRow({ asset, showDecimals, linkedClass, onEdit, onDelete }: AssetR
           </div>
         )}
         {linkedClass && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: linkedClass.color, flexShrink: 0 }} />
             <span style={{ fontSize: '0.6875rem', color: 'var(--txt-3)' }}>{linkedClass.name}</span>
+            {classDevLabel && (
+              <span style={{ fontSize: '0.625rem', fontFamily: "'DM Mono', monospace", color: classDevColor }}>
+                {classDevLabel}
+              </span>
+            )}
           </div>
         )}
       </td>
@@ -364,6 +382,16 @@ export default function Carteira() {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const sd = settings.showDecimals
+
+  const resolvedClasses = resolveClassValues(assetClasses, assets)
+  const portfolioTotal = computePortfolioTotal(assetClasses, assets)
+  const classDevMap = new Map(
+    resolvedClasses.map(c => [c.id, {
+      name: c.name,
+      color: c.color,
+      dev: c.targetPercentage - (portfolioTotal > 0 ? (c.currentValue / portfolioTotal) * 100 : 0),
+    }])
+  )
 
   const { invested, current, pnl, pnlPct } = totals(assets)
   const isPnlPos = pnl >= 0
@@ -508,7 +536,7 @@ export default function Carteira() {
                     </tr>
                   ) : (
                     <AssetRow key={asset.id} asset={asset} showDecimals={sd}
-                      linkedClass={asset.classId ? assetClasses.find((c) => c.id === asset.classId) : undefined}
+                      linkedClass={asset.classId ? classDevMap.get(asset.classId) : undefined}
                       onEdit={() => { setEditing(asset.id); setAdding(false) }}
                       onDelete={() => removeAsset(asset.id)} />
                   )

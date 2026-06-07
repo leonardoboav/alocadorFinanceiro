@@ -41,6 +41,13 @@ export default function Layout() {
   const loadRates = useStore((s) => s.loadRates)
   const total = computePortfolioTotal(rawClasses, assets)
 
+  const totalInvested = assets.reduce((s, a) => s + a.quantity * a.avgPrice, 0)
+  const totalCurrent  = assets.reduce((s, a) => s + a.quantity * a.avgPrice * (1 + a.gainLossPct / 100), 0)
+  const pnl    = totalCurrent - totalInvested
+  const pnlPct = totalInvested > 0 ? (pnl / totalInvested) * 100 : 0
+  const isPnlPos = pnl >= 0
+
+
   useEffect(() => { loadRates() }, [loadRates])
 
   useEffect(() => {
@@ -107,13 +114,23 @@ export default function Layout() {
             <div style={{ textAlign: 'right' }}>
               <div style={{
                 fontSize: '0.625rem', color: 'var(--txt-3)',
-                textTransform: 'uppercase', letterSpacing: '0.07em', lineHeight: 1,
+                textTransform: 'uppercase', letterSpacing: '0.07em', lineHeight: 1, marginBottom: '0.25rem',
               }}>Patrimônio</div>
-              <div style={{
-                fontFamily: "'DM Mono', monospace", fontWeight: 400,
-                fontSize: '0.9375rem', color: 'var(--accent)', lineHeight: 1.4,
-              }}>
-                {formatCurrency(total, settings.showDecimals)}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <span style={{
+                  fontFamily: "'DM Mono', monospace", fontWeight: 400,
+                  fontSize: '0.9375rem', color: 'var(--accent)', lineHeight: 1.4,
+                }}>
+                  {formatCurrency(total, settings.showDecimals)}
+                </span>
+                {assets.length > 0 && totalInvested > 0 && (
+                  <span style={{
+                    fontFamily: "'DM Mono', monospace", fontSize: '0.6875rem', lineHeight: 1,
+                    color: isPnlPos ? 'var(--positive)' : 'var(--negative)',
+                  }}>
+                    {isPnlPos ? '+' : '−'}{Math.abs(pnlPct).toFixed(2)}%
+                  </span>
+                )}
               </div>
             </div>
 
@@ -164,11 +181,6 @@ export default function Layout() {
           {/* Mobile right */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: 'auto' }}
             className="flex md:hidden">
-            <span style={{
-              fontFamily: "'DM Mono', monospace", fontSize: '0.875rem', color: 'var(--accent)',
-            }}>
-              {formatCurrency(total, false)}
-            </span>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               style={{

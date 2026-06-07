@@ -4,7 +4,7 @@ import { useStore } from '../../store/store'
 import { getTotalValue, resolveClassValues } from '../../utils/calculations'
 import { formatCurrency, formatPercent, generateId } from '../../utils/format'
 import { CLASS_COLORS, STRATEGY_TEMPLATES } from '../../types'
-import type { AssetClass } from '../../types'
+import type { AssetClass, Asset } from '../../types'
 import { CURRENCY_LABELS, CURRENCY_SYMBOLS, convertToBRL, formatForeign } from '../../utils/rates'
 import type { Currency, RatesCache } from '../../utils/rates'
 
@@ -166,11 +166,13 @@ interface ClassCardProps {
   showDecimals: boolean
   linkedCount: number
   linkedValue: number
+  linkedAssets: Asset[]
   onChange: (id: string, key: keyof AssetClass, value: string | number) => void
   onRemove: (id: string) => void
 }
 
-function ClassCard({ cls, total, rates, showDecimals, linkedCount, linkedValue, onChange, onRemove }: ClassCardProps) {
+function ClassCard({ cls, total, rates, showDecimals, linkedCount, linkedValue, linkedAssets, onChange, onRemove }: ClassCardProps) {
+  const [expanded, setExpanded] = useState(false)
   const isForeign = cls.currency && cls.currency !== 'BRL'
   const manualBRL = isForeign ? convertToBRL(cls.foreignValue ?? 0, cls.currency as Currency, rates) : cls.currentValue
   const effectiveValue = linkedCount > 0 ? linkedValue : manualBRL
@@ -250,11 +252,56 @@ function ClassCard({ cls, total, rates, showDecimals, linkedCount, linkedValue, 
         </button>
       </div>
 
-      {/* Linked assets note */}
+      {/* Linked assets note + expandable list */}
       {linkedCount > 0 && (
-        <p style={{ fontSize: '0.75rem', color: 'var(--accent)', paddingLeft: '2.25rem', opacity: 0.8 }}>
-          {linkedCount} ativo{linkedCount > 1 ? 's' : ''} vinculado{linkedCount > 1 ? 's' : ''} · calculado automaticamente
-        </p>
+        <div style={{ paddingLeft: '2.25rem' }}>
+          <button
+            onClick={() => setExpanded((p) => !p)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              display: 'flex', alignItems: 'center', gap: '0.375rem',
+              color: 'var(--accent)', fontSize: '0.75rem', opacity: 0.85,
+            }}>
+            <span>
+              {linkedCount} ativo{linkedCount > 1 ? 's' : ''} vinculado{linkedCount > 1 ? 's' : ''} · calculado automaticamente
+            </span>
+            <span style={{
+              fontSize: '0.625rem', transition: 'transform 150ms',
+              display: 'inline-block', transform: expanded ? 'rotate(180deg)' : 'none',
+            }}>▾</span>
+          </button>
+
+          {expanded && (
+            <div style={{
+              marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem',
+              borderLeft: `2px solid color-mix(in srgb, var(--accent) 25%, transparent)`,
+              paddingLeft: '0.75rem',
+            }}>
+              {linkedAssets.map((a) => {
+                const val = a.quantity * a.avgPrice * (1 + a.gainLossPct / 100)
+                const pctOfClass = linkedValue > 0 ? (val / linkedValue) * 100 : 0
+                return (
+                  <div key={a.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: '0.5rem', fontSize: '0.75rem',
+                  }}>
+                    <span style={{ color: 'var(--txt-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {a.ticker
+                        ? <><span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--txt-3)', marginRight: '0.375rem' }}>{a.ticker}</span>{a.name}</>
+                        : a.name}
+                    </span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--txt-1)', flexShrink: 0 }}>
+                      {formatCurrency(val, showDecimals)}
+                    </span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--txt-3)', flexShrink: 0, width: 38, textAlign: 'right' }}>
+                      {pctOfClass.toFixed(1)}%
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Foreign rate note (manual mode only) */}
@@ -295,10 +342,10 @@ function useAlocacaoState() {
   const sumTarget = classes.reduce((s, c) => s + c.targetPercentage, 0)
   const isValid = Math.abs(sumTarget - 100) < 0.01
 
-  function getLinkedInfo(classId: string) {
+  function getLinkedInfo(classId: string): { count: number; value: number; linkedAssets: Asset[] } {
     const linked = assets.filter((a) => a.classId === classId)
     const value = linked.reduce((s, a) => s + a.quantity * a.avgPrice * (1 + a.gainLossPct / 100), 0)
-    return { count: linked.length, value }
+    return { count: linked.length, value, linkedAssets: linked }
   }
 
   function update(id: string, key: keyof AssetClass, value: string | number) {
@@ -338,12 +385,18 @@ function useAlocacaoState() {
     setSaved(false)
   }
 
+  const unlinkedAssets = assets.filter((a) => !a.classId)
+  const unlinkedTotal = unlinkedAssets.reduce(
+    (s, a) => s + a.quantity * a.avgPrice * (1 + a.gainLossPct / 100), 0
+  )
+
   return {
     classes, settings, ratesCache, ratesFetching, ratesError, refreshRates,
     rates, total, sumTarget, isValid, remaining: 100 - sumTarget,
     needsRates: classes.some((c) => c.currency && c.currency !== 'BRL'),
     saved, showTemplates, setShowTemplates,
     update, add, applyTemplate, save, removeClass, getLinkedInfo,
+    unlinkedAssets, unlinkedTotal,
   }
 }
 
@@ -374,15 +427,45 @@ export default function Alocacao() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {s.classes.map((cls) => {
-            const { count: linkedCount, value: linkedValue } = s.getLinkedInfo(cls.id)
+            const { count: linkedCount, value: linkedValue, linkedAssets } = s.getLinkedInfo(cls.id)
             return (
               <ClassCard key={cls.id} cls={cls} total={s.total} rates={s.rates}
                 showDecimals={s.settings.showDecimals}
-                linkedCount={linkedCount} linkedValue={linkedValue}
+                linkedCount={linkedCount} linkedValue={linkedValue} linkedAssets={linkedAssets}
                 onChange={s.update} onRemove={s.removeClass} />
             )
           })}
         </div>
+
+        {/* Unclassified assets warning */}
+        {s.unlinkedAssets.length > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+            padding: '0.875rem 1rem', borderRadius: '0.75rem',
+            border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
+            background: 'color-mix(in srgb, var(--warning) 5%, transparent)',
+          }}>
+            <span style={{ fontSize: '0.875rem', flexShrink: 0, marginTop: '0.125rem' }}>⚠</span>
+            <div style={{ flex: 1, fontSize: '0.8125rem' }}>
+              <p style={{ color: 'var(--warning)', fontWeight: 500, marginBottom: '0.25rem' }}>
+                {s.unlinkedAssets.length} ativo{s.unlinkedAssets.length > 1 ? 's' : ''} sem classe
+                <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 400, marginLeft: '0.5rem', color: 'var(--txt-2)' }}>
+                  · {formatCurrency(s.unlinkedTotal, s.settings.showDecimals)}
+                </span>
+              </p>
+              <p style={{ color: 'var(--txt-3)', lineHeight: 1.5 }}>
+                {s.unlinkedAssets.map((a, i) => (
+                  <span key={a.id}>
+                    {i > 0 && ', '}
+                    <span style={{ fontFamily: "'DM Mono', monospace" }}>{a.ticker ?? a.name}</span>
+                  </span>
+                ))}
+                {' '}não contribuem para a análise de alocação. Vincule-os a uma classe na{' '}
+                <a href="/app/carteira" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Carteira</a>.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.5rem' }}>
           <button onClick={s.add} className="btn-ghost">
